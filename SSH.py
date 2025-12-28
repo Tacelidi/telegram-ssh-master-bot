@@ -1,16 +1,19 @@
 from fabric import Connection
 from invoke.exceptions import UnexpectedExit
 from paramiko.ssh_exception import AuthenticationException
+from dataclasses import dataclass
 
 
+@dataclass
 class SSHFullData:
-    def __init__(self, username: str, password: str, address: str):
-        self.address = address
-        self.username = username
-        self.password = password
+    username: str
+    password: str
+    address: str
 
     def _get_connection(self) -> Connection:
-        return Connection(self.address, user=self.username, connect_kwargs={'password': self.password})
+        return Connection(
+            self.address, user=self.username, connect_kwargs={"password": self.password}
+        )
 
     def _run_sudo(self, command: str) -> str:
         try:

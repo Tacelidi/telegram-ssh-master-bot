@@ -12,12 +12,10 @@ from handlers import router
 logging.basicConfig(level=logging.INFO)  # логирование
 
 load_dotenv()
-bot = Bot(
-    token=os.getenv("BOT_TOKEN"),
-    default=DefaultBotProperties(
-        parse_mode=ParseMode.HTML
-    )
-)
+token = os.getenv("BOT_TOKEN")
+if not token:
+    raise ValueError("BOT_TOKEN не найден")
+bot = Bot(token=token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
 
 
 async def main() -> None:
