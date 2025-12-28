@@ -40,7 +40,7 @@ class DataBase:
 
     async def get_servers(self, user_id: str) -> list[str]:
         async with aiosqlite.connect(self.db_name) as conn:
-            cursor = await conn.execute(f"SELECT servername FROM {user_id}")
+            cursor = await conn.execute("SELECT servername FROM ?", (user_id,))
             rows = await cursor.fetchall()
         return [row[0] for row in rows]
 

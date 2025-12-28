@@ -10,7 +10,7 @@ from aiogram.utils.formatting import as_marked_section, Bold
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
 from SSH import SSHFullData
-from keyabords import (
+from keybords import (
     start_kb,
     go_back_to_the_menu_kb,
     managing_servers_kb,
