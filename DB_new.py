@@ -1,54 +1,45 @@
 import aiosqlite
+import asyncio
 
+async def create_table() -> None:
+    async with aiosqlite.connect("my_database.db") as conn:
+        await conn.execute("""
+        CREATE TABLE IF NOT EXISTS servers (
+        user_id TEXT NOT NULL,
+        servername TEXT NOT NULL,
+        username TEXT NOT NULL,
+        password TEXT NOT NULL,
+        address TEXT NOT NULL
+        )
+        """
+        )
+        await conn.commit()
 
-class DataBase:
-    def __init__(self) -> None:
-        self.db_name = "my_database.db"
-
-    async def table_exists(self, user_id: str) -> bool:
-        async with aiosqlite.connect(self.db_name) as conn:
-            cursor = await conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
-                (user_id,),
-            )
-            result = await cursor.fetchone()
-            return result is not None
-
-    async def create_table(self, user_id: str) -> None:
-        async with aiosqlite.connect(self.db_name) as conn:
-            await conn.execute(
-                f"""
-            CREATE TABLE IF NOT EXISTS {user_id} (
-            servername TEXT NOT NULL,
-            username TEXT NOT NULL,
-            password TEXT NOT NULL,
-            address TEXT NOT NULL
-            )
-            """
-            )
-            await conn.commit()
+class Database:
+    def __init__(self, db_name: str = "my_database.db") -> None:
+        self.db_name = db_name
 
     async def add_server(
         self, user_id: str, servername: str, username: str, password: str, address: str
     ) -> None:
         async with aiosqlite.connect(self.db_name) as conn:
             await conn.execute(
-                f"INSERT INTO {user_id} (servername, username, password, address) VALUES (?, ?, ?, ?)",
-                (servername, username, password, address),
+                "INSERT INTO servers (user_id, servername, username, password, address) VALUES (?, ?, ?, ?, ?)",
+                (user_id, servername, username, password, address),
             )
             await conn.commit()
 
     async def get_servers(self, user_id: str) -> list[str]:
         async with aiosqlite.connect(self.db_name) as conn:
-            cursor = await conn.execute("SELECT servername FROM ?", (user_id,))
+            cursor = await conn.execute("SELECT servername FROM servers WHERE user_id = ?", (user_id,))
             rows = await cursor.fetchall()
         return [row[0] for row in rows]
 
     async def get_connection_data(self, user_id: str, servername: str) -> list[str]:
         async with aiosqlite.connect(self.db_name) as conn:
             cursor = await conn.execute(
-                f"SELECT username, password, address FROM {user_id} WHERE servername = ?",
-                (servername,),
+                "SELECT username, password, address FROM servers WHERE servername = ? AND user_id = ?",
+                (servername, user_id,)
             )
             result = await cursor.fetchone()
             return list(result) if result is not None else []
@@ -56,7 +47,7 @@ class DataBase:
     async def delete_server(self, user_id: str, servername: str) -> None:
         async with aiosqlite.connect(self.db_name) as conn:
             await conn.execute(
-                f"DELETE FROM {user_id} WHERE servername = ?", (servername,)
+                "DELETE FROM servers WHERE servername = ? AND user_id = ?", (servername, user_id,)
             )
             await conn.commit()
 
@@ -65,10 +56,11 @@ class DataBase:
     ) -> None:
         async with aiosqlite.connect(self.db_name) as conn:
             await conn.execute(
-                f"UPDATE {user_id} SET servername = ? WHERE servername = ?",
+                "UPDATE servers SET servername = ? WHERE servername = ? AND user_id = ?",
                 (
                     servername_new,
                     servername_old,
+                    user_id,
                 ),
             )
             await conn.commit()
@@ -78,10 +70,11 @@ class DataBase:
     ) -> None:
         async with aiosqlite.connect(self.db_name) as conn:
             await conn.execute(
-                f"UPDATE {user_id} SET username = ? WHERE servername = ?",
+                "UPDATE servers SET username = ? WHERE servername = ? AND user_id = ?",
                 (
                     username,
                     servername,
+                    user_id,
                 ),
             )
             await conn.commit()
@@ -91,10 +84,11 @@ class DataBase:
     ) -> None:
         async with aiosqlite.connect(self.db_name) as conn:
             await conn.execute(
-                f"UPDATE {user_id} SET password = ? WHERE servername = ?",
+                "UPDATE servers SET password = ? WHERE servername = ? AND user_id = ?",
                 (
                     password,
                     servername,
+                    user_id,
                 ),
             )
             await conn.commit()
@@ -102,10 +96,14 @@ class DataBase:
     async def change_address(self, user_id: str, servername: str, address: str) -> None:
         async with aiosqlite.connect(self.db_name) as conn:
             await conn.execute(
-                f"UPDATE {user_id} SET address = ? WHERE servername = ?",
+                "UPDATE servers SET address = ? WHERE servername = ? AND user_id = ?",
                 (
                     address,
                     servername,
+                    user_id,
                 ),
             )
             await conn.commit()
+
+if __name__ == "__main__":
+    asyncio.run(create_table())

@@ -19,9 +19,9 @@ from keybords import (
     my_servers,
     types,
 )
-from DB import DataBase
+from DB_new import Database
 
-db = DataBase()
+db = Database()
 router = Router()
 
 from bot import bot
@@ -55,29 +55,23 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
 
 @router.message(F.text == "Мои сервера")
 async def servers(message: types.Message, state: FSMContext) -> None:
-    user_id = str(message.from_user.first_name) + str(message.from_user.id)
-    table_exists_flag = await db.table_exists(user_id)
-    if not table_exists_flag:
+    user_id = str(message.from_user.id)
+    servers_list = await db.get_servers(user_id)
+    if len(servers_list) == 0:
         await message.answer(
-            f"У вас нет таблицы с серверами.", reply_markup=go_back_to_the_menu_kb()
+            f"У вас нет серверов.",
+            reply_markup=go_back_to_the_menu_kb(),
         )
     else:
-        servers_list = await db.get_servers(user_id)
-        if len(servers_list) == 0:
-            await message.answer(
-                f"У вас уже есть таблица, но там нет серверов.",
-                reply_markup=go_back_to_the_menu_kb(),
-            )
-        else:
-            builder = ReplyKeyboardBuilder()
-            for i in servers_list:
-                builder.add(types.KeyboardButton(text=str(i)))
-            builder.adjust(4)
+        builder = ReplyKeyboardBuilder()
+        for i in servers_list:
+            builder.add(types.KeyboardButton(text=str(i)))
+        builder.adjust(4)
 
-            await message.answer(
-                "Ваши сервера", reply_markup=builder.as_markup(resize_keyboard=True)
-            )
-            await state.set_state(UserState.managing_servers)
+        await message.answer(
+            "Ваши сервера", reply_markup=builder.as_markup(resize_keyboard=True)
+        )
+        await state.set_state(UserState.managing_servers)
 
 
 @router.message(UserState.managing_servers)
@@ -94,7 +88,7 @@ async def actioning_with_server(message: types.Message, state: FSMContext) -> No
     server = await state.get_data()
     server = server["server"]
     user_message = message.text
-    user_id = str(message.from_user.first_name) + str(message.from_user.id)
+    user_id = str(message.from_user.id)
     if user_message == "Подключение":
         await message.answer("Что вы хотите сделать?", reply_markup=server_commands())
         await state.set_state(UserState.connecting_server)
@@ -120,7 +114,7 @@ async def actioning_with_server(message: types.Message, state: FSMContext) -> No
             f"Пароль:{data[1]}",
             f"Адресс:{data[2]}",
         )
-        await message.answer(**content.as_kwargs())
+        await message.answer(**content.as_kwargs(), reply_markup=managing_servers_kb())
     elif user_message == "Изменить данные":
         await message.answer("Что вы хотите поменять?", reply_markup=server_data())
         await state.set_state(UserState.editing_server_pass)
@@ -131,7 +125,7 @@ async def actioning_with_server(message: types.Message, state: FSMContext) -> No
 @router.message(UserState.connecting_server)
 async def connect_to_server(message: types.Message, state: FSMContext) -> None:
     user_message = message.text
-    user_id = str(message.from_user.first_name) + str(message.from_user.id)
+    user_id = str(message.from_user.id)
     server = await state.get_data()
     server = server["server"]
     fl = True
@@ -159,7 +153,7 @@ async def connect_to_server(message: types.Message, state: FSMContext) -> None:
 @router.message(UserState.send_command)
 async def send_command_to_server(message: types.Message, state: FSMContext) -> None:
     user_message = message.text
-    user_id = str(message.from_user.first_name) + str(message.from_user.id)
+    user_id = str(message.from_user.id)
     server = await state.get_data()
     server = server["server"]
     data = await db.get_connection_data(user_id, server)
@@ -195,7 +189,7 @@ async def editing_servername(message: types.Message, state: FSMContext) -> None:
     user_message = message.text
     server = await state.get_data()
     server = server["server"]
-    user_id = str(message.from_user.first_name) + str(message.from_user.id)
+    user_id = str(message.from_user.id)
     await db.change_servername(user_id, server, user_message)
     await message.answer("Успешно изменено", reply_markup=my_servers())
     await state.clear()
@@ -206,7 +200,7 @@ async def editing_username(message: types.Message, state: FSMContext) -> None:
     user_message = message.text
     server = await state.get_data()
     server = server["server"]
-    user_id = str(message.from_user.first_name) + str(message.from_user.id)
+    user_id = str(message.from_user.id)
     await db.change_username(user_id, server, user_message)
     await message.answer("Успешно изменено", reply_markup=my_servers())
     await state.clear()
@@ -217,7 +211,7 @@ async def editing_server_password(message: types.Message, state: FSMContext) -> 
     user_message = message.text
     server = await state.get_data()
     server = server["server"]
-    user_id = str(message.from_user.first_name) + str(message.from_user.id)
+    user_id = str(message.from_user.id)
     await db.change_password(user_id, server, user_message)
     await message.answer("Успешно изменено", reply_markup=my_servers())
     await state.clear()
@@ -228,7 +222,7 @@ async def editing_server_address(message: types.Message, state: FSMContext) -> N
     user_message = message.text
     server = await state.get_data()
     server = server["server"]
-    user_id = str(message.from_user.first_name) + str(message.from_user.id)
+    user_id = str(message.from_user.id)
     await db.change_address(user_id, server, user_message)
     await message.answer("Успешно изменено", reply_markup=my_servers())
     await state.clear()
@@ -236,10 +230,6 @@ async def editing_server_address(message: types.Message, state: FSMContext) -> N
 
 @router.message(F.text == "Добавить новый сервер")
 async def new_server(message: types.Message, state: FSMContext) -> None:
-    user_id = str(message.from_user.first_name) + str(message.from_user.id)
-    table_exists = await db.table_exists(user_id)
-    if not table_exists:
-        await db.create_table(user_id)
     bot_msg = await message.answer("Назвоите ваш сервер")
     await state.update_data(bot_msg=bot_msg.message_id)
     await state.set_state(UserState.waiting_name)
@@ -248,7 +238,7 @@ async def new_server(message: types.Message, state: FSMContext) -> None:
 @router.message(UserState.waiting_name)
 async def waiting_name(message: types.Message, state: FSMContext) -> None:
     data = await state.get_data()
-    user_id = str(message.from_user.first_name) + str(message.from_user.id)
+    user_id = str(message.from_user.id)
     server_name = message.text
     servers_list = await db.get_servers(user_id)
     if server_name in servers_list:
@@ -295,7 +285,7 @@ async def waiting_password(message: types.Message, state: FSMContext) -> None:
     await state.update_data(password=message.text)
     await message.delete()
     data = await state.get_data()
-    user_id = str(message.from_user.first_name) + str(message.from_user.id)
+    user_id = str(message.from_user.id)
     name = data["server_name"]
     address = data["address"]
     username = data["username"]
