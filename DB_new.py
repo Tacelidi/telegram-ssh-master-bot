@@ -26,11 +26,10 @@ class Database:
     async def add_server(
             self, user_id: str, servername: str, username: str, password: str, address: str
     ) -> None:
-        encrypted_password = pm.encrypt(password)
         async with aiosqlite.connect(self.db_name) as conn:
             await conn.execute(
                 "INSERT INTO servers (user_id, servername, username, password, address) VALUES (?, ?, ?, ?, ?)",
-                (user_id, servername, username, encrypted_password, address),
+                (user_id, servername, username, pm.encrypt(password), address),
             )
             await conn.commit()
 
@@ -95,7 +94,7 @@ class Database:
             await conn.execute(
                 "UPDATE servers SET password = ? WHERE servername = ? AND user_id = ?",
                 (
-                    password,
+                    pm.encrypt(password),
                     servername,
                     user_id,
                 ),
