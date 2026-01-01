@@ -1,5 +1,7 @@
-import aiosqlite
 import asyncio
+import aiosqlite
+from encrypt import pm
+import os
 
 async def create_table() -> None:
     async with aiosqlite.connect("my_database.db") as conn:
@@ -12,20 +14,23 @@ async def create_table() -> None:
         address TEXT NOT NULL
         )
         """
-        )
+                           )
         await conn.commit()
+
 
 class Database:
     def __init__(self, db_name: str = "my_database.db") -> None:
         self.db_name = db_name
+        if not os.path.isfile('my_database.db'): raise FileNotFoundError("Файл таблицы не найден")
 
     async def add_server(
-        self, user_id: str, servername: str, username: str, password: str, address: str
+            self, user_id: str, servername: str, username: str, password: str, address: str
     ) -> None:
+        encrypted_password = pm.encrypt(password)
         async with aiosqlite.connect(self.db_name) as conn:
             await conn.execute(
                 "INSERT INTO servers (user_id, servername, username, password, address) VALUES (?, ?, ?, ?, ?)",
-                (user_id, servername, username, password, address),
+                (user_id, servername, username, encrypted_password, address),
             )
             await conn.commit()
 
@@ -42,7 +47,11 @@ class Database:
                 (servername, user_id,)
             )
             result = await cursor.fetchone()
-            return list(result) if result is not None else []
+            if result:
+                username, password, address = result
+                password = pm.decrypt(password)
+                return [username, password, address]
+            return []
 
     async def delete_server(self, user_id: str, servername: str) -> None:
         async with aiosqlite.connect(self.db_name) as conn:
@@ -52,7 +61,7 @@ class Database:
             await conn.commit()
 
     async def change_servername(
-        self, user_id: str, servername_old: str, servername_new: str
+            self, user_id: str, servername_old: str, servername_new: str
     ) -> None:
         async with aiosqlite.connect(self.db_name) as conn:
             await conn.execute(
@@ -66,7 +75,7 @@ class Database:
             await conn.commit()
 
     async def change_username(
-        self, user_id: str, servername: str, username: str
+            self, user_id: str, servername: str, username: str
     ) -> None:
         async with aiosqlite.connect(self.db_name) as conn:
             await conn.execute(
@@ -80,7 +89,7 @@ class Database:
             await conn.commit()
 
     async def change_password(
-        self, user_id: str, servername: str, password: str
+            self, user_id: str, servername: str, password: str
     ) -> None:
         async with aiosqlite.connect(self.db_name) as conn:
             await conn.execute(
@@ -104,6 +113,7 @@ class Database:
                 ),
             )
             await conn.commit()
+
 
 if __name__ == "__main__":
     asyncio.run(create_table())
