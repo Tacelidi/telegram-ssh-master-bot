@@ -1,6 +1,4 @@
 # mypy: ignore-errors
-import asyncio
-
 from aiogram import Router, F, html
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -9,7 +7,7 @@ from aiogram.types import Message
 from aiogram.utils.formatting import as_marked_section, Bold
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
-from SSH import SSHFullData
+from SSH_new import SSHFullData
 from keybords import (
     start_kb,
     go_back_to_the_menu_kb,
@@ -131,18 +129,17 @@ async def connect_to_server(message: types.Message, state: FSMContext) -> None:
     fl = True
     data = await db.get_connection_data(user_id, server)
     server_SSH = SSHFullData(data[0], data[1], data[2])
-    loop = asyncio.get_event_loop()
     if user_message == "Отправить комманду":
         await state.set_state(UserState.send_command)
         await message.answer("Напишите комманду")
         fl = False
     if user_message == "Перезапустить":
-        result = await loop.run_in_executor(None, server_SSH.restart)
+        result = await server_SSH.restart()
         await message.answer(result, parse_mode=None)
         await state.clear()
         await message.answer("Вернутся в меню", reply_markup=start_kb())
     if user_message == "Выключить":
-        result = await loop.run_in_executor(None, server_SSH.shutdown)
+        result = await server_SSH.shutdown()
         await message.answer(result, parse_mode=None)
         await state.clear()
         await message.answer("Вернутся в меню", reply_markup=start_kb())
@@ -158,10 +155,7 @@ async def send_command_to_server(message: types.Message, state: FSMContext) -> N
     server = server["server"]
     data = await db.get_connection_data(user_id, server)
     server_SSH = SSHFullData(data[0], data[1], data[2])
-    loop = asyncio.get_event_loop()
-    result = await loop.run_in_executor(
-        None, lambda: server_SSH.send_command(user_message)
-    )
+    result = await server_SSH.send_command(user_message)
     await message.answer(result, parse_mode=None)
     await state.clear()
     await message.answer("Вернутся в меню", reply_markup=start_kb())
